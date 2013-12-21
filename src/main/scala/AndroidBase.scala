@@ -353,7 +353,7 @@ object AndroidBase {
     ),
 
     // By default, use the first device we find as the ADB target
-    adbTarget in Global := AndroidDefaultTargets.Auto,
+    adbInitialTarget in Global := AndroidDefaultTargets.Auto,
 
     // By default, don't cache passwords
     cachePasswords in Global := false,

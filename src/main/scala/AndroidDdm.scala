@@ -72,8 +72,9 @@ object AndroidDdm {
     bridge = None
   }
 
-  def withDevice[F](emulator: Boolean, path: String)
-                   (action: IDevice => F):Option[F] = {
+  def listDeviceSerials(path: String) = listDevices(path).map(_.getSerialNumber())
+
+  def listDevices(path: String) = {
     var count = 0
     val bridged = createBridge(path, true)
 
@@ -83,11 +84,16 @@ object AndroidDdm {
     }
     if (!bridged.hasInitialDeviceList) {
       System.err.println("Timeout getting device list")
-      None
+      Array[IDevice]()
     } else {
-      val (emus, devices) = bridged.getDevices.partition(_.isEmulator)
-      (if (emulator) emus else devices).headOption.map(action)
+      bridged.getDevices
     }
+  }
+
+  def withDevice[F](emulator: Boolean, path: String)
+                   (action: IDevice => F):Option[F] = {
+    val (emus, devices) = listDevices(path).partition(_.isEmulator)
+    (if (emulator) emus else devices).headOption.map(action)
   }
 
   def withClient[F](emulator: Boolean, path: String, clientPkg: String)

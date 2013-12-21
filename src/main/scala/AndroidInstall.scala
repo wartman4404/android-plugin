@@ -10,6 +10,8 @@ import AndroidHelpers._
 
 import java.io.{File => JFile}
 
+import complete.DefaultParsers._
+
 object AndroidInstall {
 
   /**
@@ -224,6 +226,32 @@ object AndroidInstall {
       c.packageApkPath
     }
 
+  def adbParseableTargets(path: String) = {
+    val serials = AndroidDdm.listDeviceSerials(path)
+    serials.map(f => token(f) ^^^ AndroidDefaultTargets.UID(f))
+  }
+
+  def adbParseableDefaultTargets =
+    Seq(token("auto-emulator")   ^^^ AndroidDefaultTargets.Emulator,
+        token("auto-device")     ^^^ AndroidDefaultTargets.Device,
+        token("auto-any")        ^^^ AndroidDefaultTargets.Auto)
+
+  def adbAllTargetParser(path: String) = Space ~>
+    (adbParseableTargets(path) ++
+     adbParseableDefaultTargets)
+    .reduceLeft(_ | _)
+
+  def setAdbTargetTask = (target: TaskKey[AndroidTarget]) => (target) map { (target) =>
+    currentTarget = Some(target)
+    ()
+  }
+  def adbTargetTask = (adbInitialTarget) map { (initial) =>
+    currentTarget.getOrElse(initial)
+  }
+
+  var currentTarget: Option[AndroidTarget] = None
+    
+
   lazy val settings: Seq[Setting[_]] = Seq(
 
     // Resource package generation
@@ -254,6 +282,11 @@ object AndroidInstall {
     install <<= installTask dependsOn apk,
 
     // Package uninstallation
-    uninstall <<= uninstallTask
+    uninstall <<= uninstallTask,
+
+    adbTarget <<= adbTargetTask,
+
+    setAdbTarget <<= InputTask((dbPath) ((path) => (s: State) =>
+      adbAllTargetParser(path.absolutePath)))(setAdbTargetTask)
   )
 }

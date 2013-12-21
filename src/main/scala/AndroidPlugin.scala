@@ -63,7 +63,9 @@ object AndroidPlugin extends Plugin {
    **********************/
 
   /** Android target **/
-  val adbTarget = SettingKey[AndroidTarget]("adb-target", "Current Android target (device or emulator) connected to ADB")
+  val adbTarget = TaskKey[AndroidTarget]("adb-target", "Current Android target (device or emulator) connected to ADB")
+  val adbInitialTarget = SettingKey[AndroidTarget]("adb-initial-target", "Starting Android target")
+  val setAdbTarget = InputKey[Unit]("adb-set-target", "Select an Android target (device or emulator) connected to ADB")
 
   /** User Defines */
   val platformName = SettingKey[String]("platform-name", "Targetted android platform")
