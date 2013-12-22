@@ -4,6 +4,8 @@ import sbt._
 import Keys._
 import AndroidHelpers._
 
+import java.io.InputStream
+
 /**
  * Android target base trait
  */
@@ -21,18 +23,24 @@ trait AndroidTarget {
     val command = Seq(adbPath.absolutePath) ++ options ++ extra
 
     // Output buffer
-    val output = new StringBuffer
+    val streamer = new FIFOStream[String]()
+    val io = sys.process.BasicIO.processFully(streamer enqueue _)
+    val append = (is: InputStream) => { io(is); streamer close(); () }
+    lazy val stream = streamer.toStream
 
     // Run the command and grab the exit value
-    val exit = command.run(new ProcessIO(
+    val process = command.run(new ProcessIO(
       in => (),
-      out => output.append(IO.readStream(out)),
-      err => output.append(IO.readStream(err)),
+      append,
+      append,
       inheritedInput => false
-    )).exitValue
+    ))
 
-    // Return the output and exit code
-    (exit, output.toString)
+    if (((stream head) contains "error: device not found") || ((stream head) contains "error: more than one"))
+      (-1, stream head)
+    else {
+      (process.exitValue, stream.mkString)
+    }
   }
 
   /**

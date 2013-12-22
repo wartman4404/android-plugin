@@ -5,6 +5,10 @@ import Keys._
 
 import AndroidPlugin._
 
+import java.util.concurrent.{LinkedBlockingQueue, BlockingQueue}
+import java.io.InputStream
+import collection.JavaConverters._
+
 object AndroidHelpers {
 
   def directory(path: SettingKey[File]) = path map (IO.createDirectory(_))
@@ -137,5 +141,16 @@ object AndroidHelpers {
       }
     }
     compare_rec(0)
+  }
+
+  class FIFOStream[A]( private val queue: BlockingQueue[Option[A]]
+  = new LinkedBlockingQueue[Option[A]]()) {
+    lazy val toStream: Stream[A] = queue2stream
+    private def queue2stream: Stream[A] = queue take match {
+      case Some(a) => Stream cons ( a, queue2stream )
+      case None    => Stream empty
+    }
+    def close() = queue add None
+    def enqueue( as: A* ) = queue addAll as.map( Some(_) ).asJava
   }
 }
