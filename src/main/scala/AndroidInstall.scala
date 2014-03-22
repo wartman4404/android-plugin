@@ -241,7 +241,7 @@ object AndroidInstall {
      adbParseableDefaultTargets)
     .reduceLeft(_ | _)
 
-  def setAdbTargetTask = (target: TaskKey[AndroidTarget]) => (target) map { (target) =>
+  def setAdbTargetTask[T <: AndroidTarget] = (target: TaskKey[T]) => (target) map { (target) =>
     currentTarget = Some(target)
     ()
   }

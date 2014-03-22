@@ -15,6 +15,8 @@ trait AndroidTarget {
    */
   val options: Seq[String]
 
+  def isPresent(path: String): Either[String, Unit]
+
   /**
    * Runs ADB commands for the given adb executable path.
    */
@@ -50,6 +52,12 @@ trait AndroidTarget {
   def run(adbPath: File, s: TaskStreams, extra: String*) = {
     // Display the command in the debug logs
     s.log.debug((Seq(adbPath.absolutePath) ++ options ++ extra).mkString(" "))
+
+    s.log.debug("looking for device")
+    this.isPresent(adbPath.toString) match {
+      case Left(message) => sys.error("Unable to resolve device %s: %s\nPlease select another target.".format(this, message))
+      case Right(_) => { }
+    }
 
     // Run the command
     val (exit, output) = this(adbPath, extra: _*)
@@ -139,22 +147,43 @@ object AndroidDefaultTargets {
   /**
    * Selects a connected Android target
    */
-  object Auto extends AndroidTarget {
+  case object Auto extends AndroidTarget {
     val options = Seq.empty
+    override def isPresent(path: String) = {
+      AndroidDdm.listDevices(path).size match {
+        case 0 => Left("No devices or emulators connected (need exactly 1)")
+        case 1 => Right(Unit)
+        case _ => Left("Too many devices and emulators connected (need exactly 1)")
+      }
+    }
   }
 
   /**
    * Selects a connected Android device
    */
-  object Device extends AndroidTarget {
+  case object Device extends AndroidTarget {
     val options = Seq("-d")
+    override def isPresent(path: String) = {
+      AndroidDdm.listDevices(path).filterNot(_.isEmulator).size match {
+        case 0 => Left("No physical devices connected (need exactly 1)")
+        case 1 => Right(Unit)
+        case _ => Left("Too many physical devices connected (need exactly 1)")
+      }
+    }
   }
 
   /**
    * Selects a connected Android emulator
    */
-  object Emulator extends AndroidTarget {
+  case object Emulator extends AndroidTarget {
     val options = Seq("-e")
+    override def isPresent(path: String) = {
+      AndroidDdm.listDevices(path).filter(_.isEmulator).size match {
+        case 0 => Left("No emulators connected (need exactly 1)")
+        case 1 => Right(Unit)
+        case _ => Left("Too many emulators connected (need exactly 1)")
+      }
+    }
   }
 
   /**
@@ -162,5 +191,9 @@ object AndroidDefaultTargets {
    */
   case class UID(val uid: String) extends AndroidTarget {
     val options = Seq("-s", uid)
+    override def isPresent(path: String) = {
+      if (AndroidDdm.listDeviceSerials(path).contains(uid)) Right(Unit)
+      else Left("No device identified as %s connected".format(uid))
+    }
   }
 }
