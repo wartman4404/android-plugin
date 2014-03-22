@@ -171,8 +171,6 @@ object AndroidPreload {
 
   private def doRemountReadWrite (db: File, s: TaskStreams)(implicit emulator: Boolean) = {
     s.log.info("Remounting /system as read-write")
-    androidTarget.run(db, s, "root")
-    androidTarget.run(db, s, "wait-for-device")
     androidTarget.run(db, s, "remount")
   }
 
@@ -221,8 +219,6 @@ object AndroidPreload {
         // Remount system as read-write
         implicit val emulator = true
         androidTarget.run(db, s, "wait-for-device")
-        androidTarget.run(db, s, "root")
-        androidTarget.run(db, s, "wait-for-device")
         androidTarget.run(db, s, "remount")
 
       case None => throw new Exception("Unable to find the system image")
@@ -231,7 +227,9 @@ object AndroidPreload {
 
   private def doKillEmu (db: File, s: TaskStreams)(implicit emulator: Boolean) = {
       if (emulator)
-        androidTarget.run(db, s, "emu", "kill")
+        try {
+          androidTarget.run(db, s, "emu", "kill")
+        } catch { case e: RuntimeException => println("emulator false positive") }
       ()
   }
 
@@ -291,15 +289,16 @@ object AndroidPreload {
     (emulatorName, toolsPath, sdkPath, dbPath, dxPath, target, preloadFilters, mcp, umcp, streams) =>
 
       // We're using the emulator
+      // This appears to be treated elsewhere as "whether emu is running"
       implicit val emulator = true
 
       // Retrieve libraries
       val libraries = filterLibraries(mcp ++ umcp, preloadFilters)
 
-      // Check for existing libraries
-      val librariesToPreload = libraries filterNot { lib =>
-        checkPreloadedLibraryVersion(dbPath, streams, lib).isDefined
-      }
+      // Don't bother checking if any libraries are already present.
+      // We don't even know if the emulator is running, and booting it
+      // will certainly be slower than copying a couple of extra jars.
+      val librariesToPreload = libraries
 
       // Only do this if we have libraries to preload
       if (!librariesToPreload.isEmpty) {
