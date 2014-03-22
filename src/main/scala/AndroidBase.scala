@@ -75,40 +75,38 @@ object AndroidBase {
       apklib
     }
 
-  private def aarlibDependenciesTask =
-    (update, aarlibBaseDirectory, aarlibLibManaged, aarlibResourceManaged, resourceManaged, streams,
-     unmanagedBase) map {
-    (updateReport, aarlibBaseDirectory, aarlibLibManaged, aarlibResourceManaged, resManaged, s,
-     unmanagedBase) => {
+  private def aarlibDependenciesTask  = Def.task {
+    //(updateReport, aarlibBaseDirectory, aarlibLibManaged, aarlibResourceManaged, resManaged, s,
+     //unmanagedBase) => {
 
       // We want to extract every aarlib in the classpath that is not already
       // set to provided (which should mean that another project already
       // provides the aarLib).
-      val allaarlibs = updateReport.matching(artifactFilter(`type` = "aar"))
-      val unmanagedaarlibs = Option(unmanagedBase.listFiles)
+      val allaarlibs = update.value.matching(artifactFilter(`type` = "aar"))
+      val unmanagedaarlibs = Option(unmanagedBase.value.listFiles)
                               .map(f => f.filter(_.name.endsWith(".aar")).toList)
                               .getOrElse(Seq.empty)
-      val providedaarlibs = updateReport.matching(configurationFilter(name = "provided"))
+      val providedaarlibs = update.value.matching(configurationFilter(name = "provided"))
       val aarlibs = (allaarlibs --- providedaarlibs get) ++ unmanagedaarlibs
 
       // Make the destination directories
-      aarlibBaseDirectory.mkdirs
-      aarlibLibManaged.mkdirs
-      aarlibResourceManaged.mkdirs
+      aarlibBaseDirectory.value.mkdirs
+      aarlibLibManaged.value.mkdirs
+      aarlibResourceManaged.value.mkdirs
 
       // Extract the aarLibs
       aarlibs map { aarlib =>
 
         // Check if the AAR lib is up to date
-        val dest = aarlibResourceManaged / aarlib.base
-        val destjar = aarlibLibManaged / (aarlib.base + ".jar")
+        val dest = aarlibResourceManaged.value / aarlib.base
+        val destjar = aarlibLibManaged.value / (aarlib.base + ".jar")
         val timestamp = dest / ".timestamp"
 
         // Check if the AAR lib is up to date
         if (timestamp.lastModified < aarlib.lastModified) {
 
           // Unzip the aarlib to a temporary directory
-          s.log.info("Extracting library " + aarlib.name)
+          streams.value.log.info("Extracting library " + aarlib.name)
           val unzipped = IO.unzip(aarlib, dest)
 
           // Move the classres in place
@@ -133,7 +131,7 @@ object AndroidBase {
         )
       }
     }
-  }
+
 
   private def apklibDependenciesTask =
     (update, apklibBaseDirectory, apklibSourceManaged, apklibResourceManaged, resourceManaged, streams,
@@ -193,23 +191,25 @@ object AndroidBase {
     }
     }
 
-  private def aaptGenerateTask =
-    (manifestPackage, aaptPath, generatedProguardConfigPath,
+  private def aaptGenerateTask = Def.task {
+
+    /*(manifestPackage, aaptPath, generatedProguardConfigPath,
      manifestPath, resPath, libraryJarPath, managedJavaPath,
      aarlibDependencies, apklibDependencies, apklibSourceManaged,
-     streams, useDebug) map {
+     streams) map {
 
     (mPackage, aPath, proGen, mPath, rPath, jarPath, javaPath,
-     aarlibs, apklibs, apklibJavaPath, s, useDebug) =>
+     aarlibs, apklibs, apklibJavaPath, s) =>
+     */
 
     // Create the managed Java path if necessary
-    javaPath.mkdirs
+    managedJavaPath.value.mkdirs
 
     // Arguments for resource directories
-    val libraryResPathArgs = rPath.flatMap(p => Seq("-S", p.absolutePath))
+    val libraryResPathArgs = resPath.value.flatMap(p => Seq("-S", p.absolutePath))
 
     // Arguments for library assets
-    val extlibs = apklibs ++ aarlibs
+    val extlibs = apklibDependencies.value ++ aarlibDependencies.value
     val libraryAssetPathArgs = for (
       lib <- extlibs;
       d <- lib.assetsDir.toSeq;
@@ -217,14 +217,14 @@ object AndroidBase {
     ) yield arg
 
     def runAapt(`package`: String, outJavaPath: File, args: String*) {
-      s.log.info("Running AAPT for package " + `package`)
+      streams.value.log.info("Running AAPT for package " + `package`)
 
-      val aapt = Seq(aPath.absolutePath, "package", "--auto-add-overlay", "-m",
+      val aapt = Seq(aaptPath.value.absolutePath, "package", "--auto-add-overlay", "-m",
         "--custom-package", `package`,
-        "-M", mPath.head.absolutePath,
-        "-I", jarPath.absolutePath,
+        "-M", manifestPath.value.head.absolutePath,
+        "-I", libraryJarPath.value.absolutePath,
         "-J", outJavaPath.absolutePath,
-        "-G", proGen.absolutePath) ++
+        "-G", generatedProguardConfigPath.value.absolutePath) ++
         args ++
         libraryResPathArgs ++
         libraryAssetPathArgs
@@ -246,7 +246,7 @@ object AndroidBase {
         package %s;
         public final class BuildConfig {
           public static final boolean DEBUG = %s;
-        }""".format(`package`, useDebug))
+        }""".format(`package`, useDebug.value))
 
       // Return the name of the generated file
       buildConfig
@@ -254,20 +254,20 @@ object AndroidBase {
 
     // Run aapt to generate resources for the main package, and each apklib and
     // AAR dependency.
-    runAapt(mPackage, javaPath)
-    apklibs.foreach(lib => runAapt(lib.pkgName, javaPath, "--non-constant-id"))
-    aarlibs.foreach(lib => runAapt(lib.pkgName, javaPath, "--non-constant-id"))
+    runAapt(manifestPackage.value, managedJavaPath.value)
+    apklibDependencies.value.foreach(lib => runAapt(lib.pkgName, managedJavaPath.value, "--non-constant-id"))
+    aarlibDependencies.value.foreach(lib => runAapt(lib.pkgName, managedJavaPath.value, "--non-constant-id"))
 
     // Generate BuildConfig.java for the main package, and each apklib and AAR
     // dependency.
     val generatedBuildConfig = (
-      Seq(createBuildConfig(mPackage, javaPath)) ++
-      apklibs.map(lib => createBuildConfig(lib.pkgName, javaPath)) ++
-      aarlibs.map(lib => createBuildConfig(lib.pkgName, javaPath))
+      Seq(createBuildConfig(manifestPackage.value, managedJavaPath.value)) ++
+      apklibDependencies.value.map(lib => createBuildConfig(lib.pkgName, managedJavaPath.value)) ++
+      aarlibDependencies.value.map(lib => createBuildConfig(lib.pkgName, managedJavaPath.value))
     )
 
     // Return the list of generated files
-    (javaPath ** "R.java" get) ++ generatedBuildConfig
+    (managedJavaPath.value ** "R.java" get) ++ generatedBuildConfig
   }
 
   private def aidlGenerateTask =
