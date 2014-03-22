@@ -165,7 +165,7 @@ object AndroidNdk {
       val unmanagedArch = ndkNativeOutputPath / "${TARGET_ARCH_ABI}"
 
       // Source root for ndk-build
-      val sourceBase = ndkJniSourcePath.getParentFile
+      val sourceBase = ndkJniSourcePath
 
       // NDK-Build path
       val ndkBuildTool = ndkBuildPath getOrElse (sys.error("Android NDK not found.  " +
