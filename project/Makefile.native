@@ -1,0 +1,33 @@
+TARGET = ${NATIVE_DIR}
+OBJDIR = ${TARGET}/obj
+SODIR = ${TARGET}/so
+SRCDIR = src/main/c
+
+INCLUDE = -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux \
+	-I${JAVA_HOME}/../include -I${JAVA_HOME}/../include/linux
+
+CC=gcc
+CFLAGS=-fPIC -Wall -Wextra -pthread -Wno-unused-parameter
+
+C_SRC = java_pathconf.c
+
+$(OBJDIR):
+	mkdir $(OBJDIR)
+$(SODIR):
+	mkdir $(SODIR)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c $(OBJDIR)
+	$(CC) $(CFLAGS) -c -O -o $@ $< $(INCLUDE)
+
+$(SODIR)/lib%.so: $(OBJDIR)/%.o $(SODIR)
+	$(CC) $(CFLAGS) -shared -o $@ $< $(INCLUDE)
+
+SO_FILES = $(C_SRC:.c=.so)
+
+C_SO = $(patsubst %,$(SODIR)/lib%, $(SO_FILES))
+
+.PHONY: all
+all: $(C_SO)
+
+clean:
+	rm -rf $(C_OBJ) $(C_SO)

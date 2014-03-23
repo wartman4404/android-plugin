@@ -4,7 +4,7 @@ organization := "org.scala-sbt"
 
 version := "0.7.1-SNAPSHOT"
 
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit")
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xmax-classfile-name", s"${maxFilename.value}")
 
 //, "-Xfatal-warnings")
 
@@ -31,3 +31,28 @@ libraryDependencies ++= Seq(
 sbtPlugin := true
 
 commands += Status.stampVersion
+
+lazy val native = settingKey[NativeHelper.type]("native helper")
+
+native := {
+  def changeLibraryPath(path: String) = {
+    System.setProperty("java.library.path", path)
+    val fieldSysPath = classOf[ClassLoader].getDeclaredField("sys_paths")
+    fieldSysPath.setAccessible( true )
+    fieldSysPath.set( null, null )
+  }
+  def withLibraryPath(path: String)(fn: =>Unit) = {
+    val oldPath = System.getProperty("java.library.path")
+    changeLibraryPath(s"$oldPath:$path")
+    fn
+    changeLibraryPath(oldPath)
+  }
+  withLibraryPath("project/target/so") {
+    System.loadLibrary("java_pathconf")
+  }
+  NativeHelper
+}
+
+lazy val maxFilename = Def.setting {
+  native.value.pathconf(target.value.toString, native.value.PATHCONF_ARGS.NAME_MAX)
+}
