@@ -187,8 +187,11 @@ object AndroidDdm {
     def toOutputStream(format: String, o: OutputStream) = ImageIO.write(r, format, o)
   }
 
-  def printStackTask = (parsed: TaskKey[String]) =>
-    (parsed, streams) map { (p, s) =>
+  val asdf: Def.Initialize[State => Parser[String]] = null
+
+  def printStackTask(parser: Def.Initialize[State => Parser[String]]) = Def.inputTask {
+    val s = streams.value
+    val p = parser.parsed
       def doPrint(tinfo: ThreadInfo, includeStack: Boolean) {
         def status (ti: ThreadInfo) = {
           val colorize = (s: String) => s match {
@@ -235,15 +238,13 @@ object AndroidDdm {
     hprofDevice <<= (manifestPackage, dbPath, streams, toolsPath) map { (m,p,s, toolsPath) =>
       dumpHprof(m, p.absolutePath, false, s)(writeHprof(toolsPath))
     },
-    threadsEmulator <<= InputTask(
+    threadsEmulator <<= printStackTask(
         (resolvedScoped, dbPath) ( (ctx, path) => (s: State) =>
-        threadListParser(s, loadFromContext(manifestPackageName, ctx, s) getOrElse "", path.absolutePath, true)))
-        (printStackTask),
+        threadListParser(s, loadFromContext(manifestPackageName, ctx, s) getOrElse "", path.absolutePath, true))),
 
-    threadsDevice <<= InputTask(
+    threadsDevice <<= printStackTask(
         (resolvedScoped, dbPath) ( (ctx, path) => (s: State) =>
-        threadListParser(s, loadFromContext(manifestPackageName, ctx, s) getOrElse "", path.absolutePath, false)))
-        (printStackTask),
+        threadListParser(s, loadFromContext(manifestPackageName, ctx, s) getOrElse "", path.absolutePath, false))),
 
     stopBridge <<= (streams) map { (s) =>
       terminateBridge()

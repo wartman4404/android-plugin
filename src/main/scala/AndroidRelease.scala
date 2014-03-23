@@ -5,9 +5,11 @@ import sbt._
 import Keys._
 import AndroidPlugin._
 
+import scala.language.postfixOps
+
 object AndroidRelease {
 
-  def zipAlignTask: Project.Initialize[Task[File]] =
+  def zipAlignTask: Def.Initialize[Task[File]] =
     (zipAlignPath, packageApkPath, packageAlignedPath, streams) map { (zip, apkPath, pPath, s) =>
       val zipAlign = Seq(
           zip.absolutePath,
@@ -20,7 +22,7 @@ object AndroidRelease {
       pPath
     }
 
-   def signReleaseTask: Project.Initialize[Task[File]] =
+   def signReleaseTask: Def.Initialize[Task[File]] =
     (keystorePath, keyalias, packageApkPath, streams, cachePasswords) map { (ksPath, ka, pPath, s, cache) =>
       val jarsigner = Seq(
         "jarsigner",

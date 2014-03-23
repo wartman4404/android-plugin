@@ -49,7 +49,7 @@ object AndroidPreload {
         val tags = libraries map { _.usesTag }
 
         // Update the element
-        Elem(namespace, "application", attribs, scope, children ++ tags: _*)
+        Elem(namespace, "application", attribs, scope, true, children ++ tags: _*)
       }
 
       case other => other
@@ -118,9 +118,9 @@ object AndroidPreload {
     s.log.info("Setting permissions for " + library.fullName)
 
     // Generate string from the XML
-    val xmlString = scala.xml.Utility.toXML(
+    val xmlString = scala.xml.Utility.serialize(
       scala.xml.Utility.trim(library.permissionTag),
-      minimizeTags=true
+      minimizeTags=MinimizeMode.Always
     ).toString.replace("\"", "\\\"")
 
     // Load the file on the device
@@ -284,16 +284,15 @@ object AndroidPreload {
       }
     }
 
-  private def preloadEmulatorTask(emulatorName: TaskKey[String]) =
-    (emulatorName, toolsPath, sdkPath, dbPath, dxPath, target, preloadFilters, managedClasspath, unmanagedClasspath, streams) map {
-    (emulatorName, toolsPath, sdkPath, dbPath, dxPath, target, preloadFilters, mcp, umcp, streams) =>
+  private def preloadEmulatorTask = Def.inputTask {
+    val emulatorName = AndroidEmulator.installedAvds.parsed
 
       // We're using the emulator
       // This appears to be treated elsewhere as "whether emu is running"
       implicit val emulator = true
 
       // Retrieve libraries
-      val libraries = filterLibraries(mcp ++ umcp, preloadFilters)
+      val libraries = filterLibraries(managedClasspath.value ++ unmanagedClasspath.value, preloadFilters.value)
 
       // Don't bother checking if any libraries are already present.
       // We don't even know if the emulator is running, and booting it
@@ -304,21 +303,21 @@ object AndroidPreload {
       if (!librariesToPreload.isEmpty) {
 
         // Kill any running emulator
-        doKillEmu (dbPath, streams)
+        doKillEmu (dbPath.value, streams.value)
 
         // Restart the emulator in system read-write mode
-        doStartEmuReadWrite (dbPath, streams, sdkPath, toolsPath, emulatorName, false)
+        doStartEmuReadWrite (dbPath.value, streams.value, sdkPath.value, toolsPath.value, emulatorName, false)
 
         // Preload the libraries
         librariesToPreload map { lib =>
 
           // Push files to the device
-          doPreloadJar         (dbPath, dxPath, streams, target, lib)
-          doPreloadPermissions (dbPath, streams, lib)
+          doPreloadJar         (dbPath.value, dxPath.value, streams.value, target.value, lib)
+          doPreloadPermissions (dbPath.value, streams.value, lib)
         }
 
         // Reboot / Kill emulator
-        doKillEmu (dbPath, streams)
+        doKillEmu (dbPath.value, streams.value)
       }
     }
 
@@ -339,7 +338,6 @@ object AndroidPreload {
 
     // Preload Scala on the device/emulator
     preloadDevice <<= preloadDeviceTask,
-    preloadEmulator <<= InputTask(
-      (sdkPath)(AndroidEmulator.installedAvds(_)))(preloadEmulatorTask)
+    preloadEmulator <<= preloadEmulatorTask
   ))
 }

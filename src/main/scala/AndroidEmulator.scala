@@ -8,18 +8,20 @@ import AndroidHelpers.isWindows
 
 import complete.DefaultParsers._
 
-object AndroidEmulator {
-  private def emulatorStartTask = (parsedTask: TaskKey[String]) =>
-    (parsedTask, toolsPath) map { (avd, toolsPath) =>
-      "%s/emulator -avd %s".format(toolsPath, avd).run
-      ()
-    }
+import scala.language.postfixOps
 
-  private def listDevicesTask: Project.Initialize[Task[Unit]] = (dbPath) map {
+object AndroidEmulator {
+  private def emulatorStartTask = Def.inputTask {
+    val avd = installedAvds.parsed
+    "%s/emulator -avd %s".format(toolsPath.value, avd).run
+    ()
+  }
+
+  private def listDevicesTask: Def.Initialize[Task[Unit]] = (dbPath) map {
     _ +" devices" !
   }
 
-  private def killAdbTask: Project.Initialize[Task[Unit]] = (dbPath) map {
+  private def killAdbTask: Def.Initialize[Task[Unit]] = (dbPath) map {
     _ +" kill-server" !
   }
 
@@ -30,9 +32,9 @@ object AndroidEmulator {
     ()
   }
 
-  def installedAvds(sdkHome: File) = (s: State) => {
+  def installedAvds = Def.setting { (s: State) =>
     val avds = ((Path.userHome / ".android" / "avd" * "*.ini") +++
-      (if (isWindows) (sdkHome / ".android" / "avd" * "*.ini")
+      (if (isWindows) (sdkPath.value / ".android" / "avd" * "*.ini")
        else PathFinder.empty)).get
     Space ~> avds.map(f => token(f.base))
                  .reduceLeftOption(_ | _).getOrElse(token("none"))
@@ -41,7 +43,7 @@ object AndroidEmulator {
   lazy val baseSettings: Seq[Setting[_]] = (Seq(
     listDevices <<= listDevicesTask,
     killAdb <<= killAdbTask,
-    emulatorStart <<= InputTask((sdkPath)(installedAvds(_)))(emulatorStartTask),
+    emulatorStart <<= emulatorStartTask,
     emulatorStop <<= emulatorStopTask
   ))
 

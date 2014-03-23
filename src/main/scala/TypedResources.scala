@@ -7,6 +7,8 @@ import scala.xml._
 import Keys._
 import AndroidPlugin._
 
+import scala.language.postfixOps
+
 object TypedResources {
   private def generateTypedResourcesTask =
     (useTypedResources, typedResource, layoutResources, libraryJarPath, manifestPackage, streams) map {
@@ -18,7 +20,7 @@ object TypedResources {
 
         def tryLoading(className: String) = {
           try {
-            Some(androidJarLoader.loadClass(className))
+            Some[Class[_]](androidJarLoader.loadClass(className))
           } catch {
             case _ : Throwable => None
           }

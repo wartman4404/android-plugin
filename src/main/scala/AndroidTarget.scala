@@ -6,6 +6,8 @@ import AndroidHelpers._
 
 import java.io.InputStream
 
+import scala.language.postfixOps
+
 /**
  * Android target base trait
  */

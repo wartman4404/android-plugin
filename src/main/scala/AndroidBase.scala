@@ -10,6 +10,8 @@ import AndroidHelpers._
 
 import sbinary.DefaultProtocol.StringFormat
 
+import scala.language.postfixOps
+
 object AndroidBase {
   def getNativeTarget(parent: File, name: String, abi: String) = {
     val extension = "-" + abi + ".so"
@@ -66,11 +68,11 @@ object AndroidBase {
       (manPath, rPath, aPath, jPath, sPath, apklib, s) =>
       s.log.info("packaging apklib")
       val mapping =
-        (PathFinder(manPath)            x flat) ++
-        (PathFinder(jPath) ** "*.java"  x rebase(jPath, "src")) ++
-        (PathFinder(sPath) ** "*.scala" x rebase(sPath, "src")) ++
-        ((PathFinder(rPath) ***)        x rebase(rPath, "res")) ++
-        ((PathFinder(aPath) ***)        x rebase(aPath, "assets"))
+        (PathFinder(manPath)            pair flat) ++
+        (PathFinder(jPath) ** "*.java"  pair rebase(jPath, "src")) ++
+        (PathFinder(sPath) ** "*.scala" pair rebase(sPath, "src")) ++
+        ((PathFinder(rPath) ***)        pair rebase(rPath, "res")) ++
+        ((PathFinder(aPath) ***)        pair rebase(aPath, "assets"))
       IO.jar(mapping, apklib, new java.util.jar.Manifest)
       apklib
     }
@@ -314,7 +316,7 @@ object AndroidBase {
   /**
    * Returns the internal dependencies for the "provided" scope only
    */
-  def providedInternalDependenciesTask(proj: ProjectRef, struct: Load.BuildStructure) = {
+  def providedInternalDependenciesTask(proj: ProjectRef, struct: BuildStructure) = {
     // "Provided" dependencies of a ResolvedProject
     def providedDeps(op: ResolvedProject): Seq[ProjectRef] = {
       op.dependencies

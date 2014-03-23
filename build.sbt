@@ -4,9 +4,7 @@ organization := "org.scala-sbt"
 
 version := "0.7.1-SNAPSHOT"
 
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-Xmax-classfile-name", s"${maxFilename.value}")
-
-//, "-Xfatal-warnings")
+scalacOptions ++= Seq("-unchecked", "-deprecation", "-Xcheckinit", "-feature", "-Xfatal-warnings", "-Xmax-classfile-name", s"${maxFilename.value}")
 
 scalaVersion := "2.10.3"
 

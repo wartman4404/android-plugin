@@ -12,6 +12,8 @@ import java.io.{File => JFile}
 
 import complete.DefaultParsers._
 
+import scala.language.postfixOps
+
 object AndroidInstall {
 
   /**
@@ -34,7 +36,7 @@ object AndroidInstall {
     ()
   }
 
-  private def aaptPackageTask: Project.Initialize[Task[File]] =
+  private def aaptPackageTask: Def.Initialize[Task[File]] =
   (aaptPath, manifestPath, resPath, mainAssetsPath, libraryJarPath, resourcesApkPath, streams) map {
   (aaptPath, manifestPath, resPath, mainAssetsPath, libraryJarPath, resourcesApkPath, streams) =>
 
@@ -62,7 +64,7 @@ object AndroidInstall {
     resourcesApkPath
   }
 
-  private def dxTask: Project.Initialize[Task[File]] =
+  private def dxTask: Def.Initialize[Task[File]] =
     (dxPath, dxMemory, target, proguard, dxInputs, dxPredex,
       proguardOptimizations, classDirectory, dxOutputPath, scalaInstance, streams) map {
     (dxPath, dxMemory, target, proguard, dxInputs, dxPredex,
@@ -116,7 +118,7 @@ object AndroidInstall {
       dxOutputPath
     }
 
-  private def proguardTask: Project.Initialize[Task[Option[File]]] =
+  private def proguardTask: Def.Initialize[Task[Option[File]]] =
     (proguardConfiguration, proguardOutputPath, streams) map {
     (proguardConfiguration, proguardOutputPath, streams) =>
 
@@ -138,7 +140,7 @@ object AndroidInstall {
       }
   }
 
-  private def proguardConfigurationTask: Project.Initialize[Task[Option[File]]] =
+  private def proguardConfigurationTask: Def.Initialize[Task[Option[File]]] =
     (useProguard, proguardOptimizations, classDirectory,
     generatedProguardConfigPath, includedClasspath, providedClasspath,
     proguardOutputPath, manifestPackage, proguardOptions, sourceManaged,
@@ -241,9 +243,8 @@ object AndroidInstall {
      adbParseableDefaultTargets)
     .reduceLeft(_ | _)
 
-  def setAdbTargetTask[T <: AndroidTarget] = (target: TaskKey[T]) => (target) map { (target) =>
-    currentTarget = Some(target)
-    ()
+  def setAdbTargetTask = Def.inputTask {
+    currentTarget = Some(adbAllTargetParser(dbPath.value.absolutePath).parsed)
   }
   def adbTargetTask = (adbInitialTarget) map { (initial) =>
     currentTarget.getOrElse(initial)
@@ -286,7 +287,6 @@ object AndroidInstall {
 
     adbTarget <<= adbTargetTask,
 
-    setAdbTarget <<= InputTask((dbPath) ((path) => (s: State) =>
-      adbAllTargetParser(path.absolutePath)))(setAdbTargetTask)
+    setAdbTarget <<= setAdbTargetTask
   )
 }

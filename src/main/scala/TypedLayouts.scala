@@ -7,6 +7,8 @@ import scala.xml._
 import Keys._
 import AndroidPlugin._
 
+import scala.language.postfixOps
+
 // FIXME more appropriate name
 object TypedLayouts {
   /** Views with android:id. */

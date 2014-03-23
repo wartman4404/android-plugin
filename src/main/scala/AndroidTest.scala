@@ -20,9 +20,7 @@ object AndroidTest {
     (Seq (
       testRunner <<= detectTestRunnerTask,
       test       <<= instrumentationTestAction dependsOn install,
-      testOnly   <<= InputTask(loadForParser(definedTestNames in Test)( (s, i) => testParser(s, i getOrElse Nil))) { test =>
-        runSingleTest(test)
-      }
+      testOnly   <<= runSingleTest
     ))
 
   /**
@@ -58,15 +56,16 @@ object AndroidTest {
   /**
    * Task for starting a single test on a target
    */
-  val runSingleTest = (test: TaskKey[String]) =>
-      (adbTarget, test, dbPath, manifestPackage, testRunner, streams) map {
-      (adbTarget, test, dbPath, manifestPackage, testRunner, s) =>
+  val runSingleTest = Def.inputTask {
+      val test = loadForParser(definedTestNames in Test)( (s, i) => testParser(s, i getOrElse Nil)).parsed
 
       // Run instrumentation tests
-      val (exit, out) = adbTarget.testApp(dbPath, manifestPackage, testRunner, Some(test))
+      val exit_out = adbTarget.value.testApp(dbPath.value, manifestPackage.value, testRunner.value, Some(test))
+      // work around issue with .value macro
+      val (exit, out) = exit_out
 
       // Parse them if they succeeded
-      if (exit == 0) parseTests(out, manifestPackage, s.log)
+      if (exit == 0) parseTests(out, manifestPackage.value, streams.value.log)
 
       // Else, display the error
       else sys.error("am instrument returned error %d\n\n%s".format(exit, out))

@@ -9,6 +9,8 @@ import java.util.concurrent.{LinkedBlockingQueue, BlockingQueue}
 import java.io.InputStream
 import collection.JavaConverters._
 
+import scala.language.postfixOps
+
 object AndroidHelpers {
 
   def directory(path: SettingKey[File]) = path map (IO.createDirectory(_))
