@@ -121,8 +121,9 @@ object AndroidPlugin extends Plugin {
 
   /** Install Scala on device/emulator **/
   val preloadFilters     = SettingKey[Seq[Attributed[File] => Boolean]]("preload-filters", "Filters the libraries that are to be preloaded")
-  val preloadDevice      = TaskKey[Unit]("preload-device", "Setup device for development by uploading predexed libraries")
+  val preloadDevice      = TaskKey[Unit]("preload-device", "Setup USB-connected device for development by uploading predexed libraries")
   val preloadEmulator    = InputKey[Unit]("preload-emulator", "Setup emulator for development by uploading predexed libraries")
+  val preloadAny         = InputKey[Unit]("preload-any", "Setup any running device for development by uploading predexed libraries")
 
   /** Installable Tasks */
   val install = TaskKey[Unit]("install")
