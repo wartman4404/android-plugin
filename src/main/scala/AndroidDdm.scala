@@ -55,7 +55,7 @@ object AndroidDdm {
     }
   }
 
-  def createBridge(path: String, clientSupport: Boolean) = {
+  def createBridge(path: String, clientSupport: Boolean) = this.synchronized {
     bridge.getOrElse {
       AndroidDebugBridge.addClientChangeListener(clientListener)
       AndroidDebugBridge.init(clientSupport)
@@ -67,7 +67,7 @@ object AndroidDdm {
     }
   }
 
-  def terminateBridge() {
+  def terminateBridge() = this.synchronized {
     AndroidDebugBridge.terminate()
     bridge = None
   }

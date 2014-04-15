@@ -40,9 +40,10 @@ trait AndroidTarget {
       inheritedInput => false
     ))
 
-    if (((stream head) contains "error: device not found") || ((stream head) contains "error: more than one"))
-      (-1, stream head)
-    else {
+    val firstLine = stream.headOption.getOrElse("")
+    if (((firstLine) contains "error: device not found") || ((firstLine) contains "error: more than one")) {
+      (-1, firstLine)
+    } else {
       (process.exitValue, stream.mkString)
     }
   }
